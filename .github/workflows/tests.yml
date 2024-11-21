@@ -1,0 +1,45 @@
+---
+name: CI
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: "Python ${{ matrix.python-version }} ${{ matrix.os }}"
+    runs-on: "${{ matrix.os }}"
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
+        os: ["macos-latest", "windows-latest", "ubuntu-latest"]
+        # Use the macos-13 runner for 3.7, since 3.7 is not currently available
+        # on ARM64 macOS runners (i.e. 14+).
+        # See: https://github.com/actions/setup-python/issues/856
+        exclude:
+          - python-version: "3.7"
+            os: "macos-latest"
+        include:
+          - python-version: "3.7"
+            os: "macos-13"
+
+    steps:
+      - uses: "actions/checkout@v4"
+      - uses: "actions/setup-python@v5"
+        with:
+          python-version: "${{ matrix.python-version }}"
+          allow-prereleases: true
+      - name: "Install dependencies"
+        run: |
+          python -VV
+          python -m site
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install --upgrade virtualenv tox tox-gh-actions
+
+      - name: "Run tox targets for ${{ matrix.python-version }}"
+        run: "python -m tox"
